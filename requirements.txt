@@ -1,0 +1,7 @@
+pathlib==1.0.1
+matplotlib==3.8.2
+pandas==2.1.4
+numpy==1.26.2
+torch==2.1.2
+torchaudio==2.1.2
+torchvision==0.16.2
