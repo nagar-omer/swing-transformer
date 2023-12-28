@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import torch
 from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
 from torchvision.io import read_image
@@ -88,7 +89,7 @@ def group_images(batch):
                     (0, max_w  -  im.shape[2])),
                mode='constant', constant_values=0) for im in images
     ])
-    return images, np.asarray(labels)
+    return torch.Tensor(images), labels  # TODO: convert to tensor
 
 # def collate_fn(batch):
 #     return batch
