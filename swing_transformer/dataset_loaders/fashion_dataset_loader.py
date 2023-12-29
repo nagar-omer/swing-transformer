@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import torch
+from PIL import Image
+from matplotlib import cm
 from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
 from torchvision.io import read_image
@@ -49,7 +51,9 @@ class KaggleFashionDataset(Dataset):
                 transforms.Normalize(mean=[0.48145466, 0.4578275, 0.40821073], std=[0.26862954, 0.26130258, 0.27577711])
         ])
         else:
-            self._transform = None
+            self._transform = transforms.Compose([
+                transforms.ToTensor(),
+        ])
 
     def __len__(self):
         return len(self._styles)
@@ -64,11 +68,10 @@ class KaggleFashionDataset(Dataset):
         # load image
         img_path = self._data_path / "images" / img_name
         try:
-            image = read_image(img_path.as_posix())         # load to tensor
+            image = Image.open(img_path.as_posix())       # load to PIL image
         except:
             # load black image
-            image = np.zeros((3, 80, 60), dtype=np.uint8)
-        # image = Image.open(img_path.as_posix())       # load to PIL image
+            image = Image.fromarray(np.zeros((224, 224, 3), dtype=np.uint8))
 
         # apply transform
         if self._transform is not None:
