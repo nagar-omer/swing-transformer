@@ -1,7 +1,7 @@
 import torch
 from torch.nn import Linear
 
-from swing_transformer.utils import apply_linear_on_axis, apply_window_msa
+from swing_transformer.utils import apply_layer_on_axis, apply_window_msa
 
 
 def test_apply_linear_on_axis():
@@ -38,7 +38,7 @@ def test_apply_linear_on_axis():
     expected_out = torch.stack([img_1.sum(axis=0) * 2, img_2.sum(axis=0) * 2], dim=0).unsqueeze(1)
 
     # apply and test
-    out = apply_linear_on_axis(x, linear, 1)
+    out = apply_layer_on_axis(x, linear, 1)
     assert (expected_out == out).all().item(), 'apply_linear_on_axis failed'
 
 

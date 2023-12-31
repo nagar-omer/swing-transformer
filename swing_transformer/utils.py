@@ -1,43 +1,44 @@
+from typing import Callable
+
 import torch
 from torch import nn
 from torch.nn import MultiheadAttention
 
 
-def apply_linear_on_axis(x: torch.Tensor, linear: nn.Linear, axis: int):
+def apply_layer_on_axis(x: torch.Tensor, layer: Callable, axis: int, in_dim: int, out_dim: int):
     """
     Apply linear layer on a specific axis of a tensor
     :param x: tensor to apply linear layer on
-    :param linear: linear layer to apply
+    :param layer: linear layer to apply
     :param axis: axis to apply linear layer on
+    :param in_dim: input dimension of layer
+    :param out_dim: output dimension of layer
     :return: tensor with linear layer applied on axis
     """
     assert type(x) == torch.Tensor, 'x must be a tensor'
-    assert type(linear) == nn.Linear, 'linear must be a linear layer'
     assert x.dim() >= axis, 'axis must be smaller than the number of dimensions of x'
 
     # get shape of x
     in_shape = list(x.shape)
-    # get shape of linear layer output
-    linear_in_shape = linear.in_features
-    linear_out_shape = linear.out_features
 
     # calculate output shape after linear layer
     out_shape = in_shape.copy()
     del out_shape[axis]
-    out_shape.append(linear_out_shape)
+    out_shape.append(out_dim)
 
-    assert in_shape[axis] == linear_in_shape, 'linear layer output must have the same size as x on axis'
+    assert in_shape[axis] == in_dim, 'linear layer output must have the same size as x on axis'
     # move axis to the end
     permutation = list(range(len(in_shape)))
     permutation.remove(axis)
     permutation.append(axis)
 
-    reshaped_tensor = x.permute(*permutation).contiguous().view(-1, linear_in_shape)
-    transformed = linear(reshaped_tensor)
+    reshaped_tensor = x.permute(*permutation).contiguous().view(-1, in_dim)
+    transformed = layer(reshaped_tensor)
 
     # view as original shape and back to original permutation
     reversed_permutation = list(range(len(in_shape)))
     reversed_permutation = reversed_permutation[:axis] + [len(in_shape) - 1] + reversed_permutation[axis:-1]
+
     x = transformed.view(*out_shape).permute(*reversed_permutation)
 
     return x
@@ -85,8 +86,10 @@ def apply_window_msa(msa: MultiheadAttention, x: torch.Tensor, n_windows: int = 
     # roll and reshape - prepare for multi-head attention
     if shift:
         # pad to allow rolling
-        x = torch.nn.functional.pad(x, (window_size_h // 2, window_size_h // 2,
-                                        window_size_w // 2, window_size_w // 2))
+        pad_h_left, pad_h_right = window_size_h // 2, window_size_h // 2 + window_size_h % 2
+        pad_w_left, pad_w_right = window_size_w // 2, window_size_w // 2 + window_size_w % 2
+
+        x = torch.nn.functional.pad(x, (pad_w_left, pad_w_right, pad_h_left, pad_h_right))
         n_windows = int((n_windows ** 0.5 + 1) ** 2)
         n_windows_h, n_windows_w = int(n_windows ** 0.5), int(n_windows ** 0.5)
         height, width = x.shape[2], x.shape[3]
@@ -104,6 +107,6 @@ def apply_window_msa(msa: MultiheadAttention, x: torch.Tensor, n_windows: int = 
     x = x.permute(0, 1, 2, 4, 3, 5).reshape(n_samples, n_channels, height, width)
 
     if shift:
-        x = x[:, :, window_size_h // 2: -window_size_h // 2, window_size_w // 2: -window_size_w // 2]
+        x = x[:, :, pad_h_left:-pad_h_right, pad_w_left:-pad_w_right]
     return x
 
